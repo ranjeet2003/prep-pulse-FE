@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Head from "next/head";
 import {
   Box,
@@ -9,80 +9,161 @@ import {
   TextField,
   Typography,
   Grid,
+  CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { Layout as DashboardLayout } from "src/layouts/dashboard/layout";
 import AddIcon from "@mui/icons-material/Add";
 import Cookies from "js-cookie";
-
-const subjects = ["Math", "Science", "History", "Geography"];
-const chapters = ["Chapter 1", "Chapter 2", "Chapter 3", "Chapter 4"];
+import { fetchSubjects, fetchChapters, addSubject, addTest, addChapter } from "src/utils/api";
+import { useRouter } from "next/router";
 
 const LandingPage = () => {
+  const [subjects, setSubjects] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingChapters, setLoadingChapters] = useState(false);
+  const [subjectsError, setSubjectsError] = useState("");
+  const [chaptersError, setChaptersError] = useState("");
   const [subject, setSubject] = useState("");
   const [chapter, setChapter] = useState("");
   const [totalQuestions, setTotalQuestions] = useState("");
   const [attemptedQuestions, setAttemptedQuestions] = useState("");
   const [correctedQuestions, setCorrectedQuestions] = useState("");
-  const [testNumber, setTestNumber] = useState(""); // New state for test number
+  const [testNumber, setTestNumber] = useState("");
 
   const [openSubjectForm, setOpenSubjectForm] = useState(false);
   const [newSubject, setNewSubject] = useState("");
   const [openChapterForm, setOpenChapterForm] = useState(false);
   const [newChapter, setNewChapter] = useState("");
+  const [newlyAddedSubjectId, setNewlyAddedSubjectId] = useState("");
+  const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
 
-  const handleSubmit = (event) => {
+  const router = useRouter();
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Convert values to numbers
     const total = parseInt(totalQuestions, 10) || 0;
     const attempted = parseInt(attemptedQuestions, 10) || 0;
     const corrected = parseInt(correctedQuestions, 10) || 0;
 
-    // Calculate percentages
     const attemptedPercentage = total > 0 ? ((attempted / total) * 100).toFixed(2) : 0;
     const correctedPercentage = total > 0 ? ((corrected / total) * 100).toFixed(2) : 0;
 
-    // Log all the form data and percentages
     console.log({
       subject,
       chapter,
       totalQuestions,
       attemptedQuestions,
       correctedQuestions,
-      testNumber, // Log the new test number
+      testNumber,
       attemptedPercentage: `${attemptedPercentage}%`,
       correctedPercentage: `${correctedPercentage}%`,
     });
 
-    // Reset the form
-    setSubject("");
-    setChapter("");
-    setTotalQuestions("");
-    setAttemptedQuestions("");
-    setCorrectedQuestions("");
-    setTestNumber(""); // Reset the new field
+    // Prepare the data to be sent to the API
+    const testData = {
+      chapterId: chapter,
+      test_number: parseInt(testNumber, 10),
+      total_questions: total,
+      attempted_questions: attempted,
+      corrected_questions: corrected,
+      userId: Cookies.get("userId"),
+    };
+
+    try {
+      const token = Cookies.get("token");
+      await addTest(testData, token);
+
+      // Show success message and redirect after 3 seconds
+      setSuccessSnackbarOpen(true);
+      setTimeout(() => {
+        router.push("/");
+      }, 3000); // Redirect after 3 seconds
+    } catch (error) {
+      console.error(error.message);
+    }
   };
 
   const handleAddSubject = async () => {
     const token = Cookies.get("token");
-    const response = await fetch("http://localhost:3030/api/subjects/subjects", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name: newSubject }),
-    });
 
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const data = await addSubject(newSubject, token);
       console.log("New Subject added:", data);
+      setNewlyAddedSubjectId(data.id); // Store the subject ID returned by the API
       setOpenSubjectForm(false);
       setNewSubject("");
-    } else {
-      console.error("Failed to add subject:", await response.json());
+      fetchSubjectsList(); // Refresh the subjects list
+    } catch (error) {
+      console.error(error.message);
     }
   };
+
+  const handleAddChapter = async () => {
+    const token = Cookies.get("token");
+
+    try {
+      const chapterData = {
+        name: newChapter,
+        subjectId: newlyAddedSubjectId || subject,
+      };
+      const data = await addChapter(chapterData.name, chapterData.subjectId, token);
+      console.log("New Chapter added:", data);
+      setOpenChapterForm(false);
+      setNewChapter("");
+      fetchChaptersList(chapterData.subjectId); // Optionally refresh the chapters list
+    } catch (error) {
+      console.error(error.message);
+    }
+  };
+
+  const fetchSubjectsList = async () => {
+    setLoadingSubjects(true);
+    setSubjectsError("");
+    const token = Cookies.get("token");
+    const userId = Cookies.get("userId");
+
+    try {
+      const data = await fetchSubjects(userId, token);
+      if (data.length === 0) {
+        setSubjectsError("No subjects found. Please add one.");
+      }
+      setSubjects(data);
+    } catch (error) {
+      setSubjectsError(error.message);
+    }
+    setLoadingSubjects(false);
+  };
+
+  const fetchChaptersList = async (subjectId) => {
+    setLoadingChapters(true);
+    setChaptersError("");
+    const token = Cookies.get("token");
+
+    try {
+      const data = await fetchChapters(subjectId, token);
+      if (data.length === 0) {
+        setChaptersError("No chapters found for this subject.");
+      }
+      setChapters(data);
+    } catch (error) {
+      setChaptersError(error.message);
+    }
+    setLoadingChapters(false);
+  };
+
+  const handleSubjectChange = (event) => {
+    const selectedSubjectId = event.target.value;
+    setSubject(selectedSubjectId);
+    fetchChaptersList(selectedSubjectId);
+  };
+
+  useEffect(() => {
+    fetchSubjectsList();
+  }, []);
 
   return (
     <>
@@ -102,64 +183,74 @@ const LandingPage = () => {
             <Box
               sx={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "space-between", // Align buttons parallel to each other
+                gap: 2, // Add space between the buttons
                 mb: 2,
               }}
             >
-              <Button
-                startIcon={<AddIcon />}
-                sx={{ width: "160px" }}
-                onClick={() => setOpenSubjectForm(true)}
-                variant="contained"
-              >
-                Add Subject
-              </Button>
-              <Button
-                startIcon={<AddIcon />}
-                sx={{ width: "160px" }}
-                onClick={() => setOpenChapterForm(true)}
-                variant="contained"
-              >
-                Add Chapter
-              </Button>
-            </Box>
-            {openSubjectForm && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6">Add New Subject</Typography>
-                <TextField
-                  fullWidth
-                  label="New Subject"
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  sx={{ mb: 1 }}
-                />
-                <Button variant="contained" onClick={handleAddSubject}>
-                  Submit Subject
-                </Button>
-              </Box>
-            )}
-            {openChapterForm && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6">Add New Chapter</Typography>
-                <TextField
-                  fullWidth
-                  label="New Chapter"
-                  value={newChapter}
-                  onChange={(e) => setNewChapter(e.target.value)}
-                  sx={{ mb: 1 }}
-                />
+              <Box>
                 <Button
+                  startIcon={<AddIcon />}
+                  sx={{ width: "160px" }}
+                  onClick={() => setOpenSubjectForm((prev) => !prev)}
                   variant="contained"
-                  onClick={() => {
-                    console.log(`New Chapter: ${newChapter}`);
-                    setOpenChapterForm(false);
-                    setNewChapter("");
-                  }}
                 >
-                  Submit Chapter
+                  Add Subject
                 </Button>
+                {openSubjectForm && (
+                  <Box
+                    component="form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAddSubject();
+                    }}
+                    sx={{ mt: 1 }}
+                  >
+                    <TextField
+                      fullWidth
+                      label="New Subject"
+                      value={newSubject}
+                      onChange={(e) => setNewSubject(e.target.value)}
+                      sx={{ mb: 1 }}
+                    />
+                    <Button type="submit" variant="contained">
+                      Submit
+                    </Button>
+                  </Box>
+                )}
               </Box>
-            )}
+              <Box>
+                <Button
+                  startIcon={<AddIcon />}
+                  sx={{ width: "160px" }}
+                  onClick={() => setOpenChapterForm((prev) => !prev)}
+                  variant="contained"
+                >
+                  Add Chapter
+                </Button>
+                {openChapterForm && (
+                  <Box
+                    component="form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAddChapter();
+                    }}
+                    sx={{ mt: 1 }}
+                  >
+                    <TextField
+                      fullWidth
+                      label="New Chapter"
+                      value={newChapter}
+                      onChange={(e) => setNewChapter(e.target.value)}
+                      sx={{ mb: 1 }}
+                    />
+                    <Button type="submit" variant="contained">
+                      Submit
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+            </Box>
             <form onSubmit={handleSubmit}>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
@@ -168,13 +259,30 @@ const LandingPage = () => {
                     select
                     label="Select Subject"
                     value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
+                    onChange={handleSubjectChange}
+                    SelectProps={{
+                      MenuProps: {
+                        PaperProps: {
+                          style: {
+                            maxHeight: 224, // 5 items * 48px item height + 8px padding
+                          },
+                        },
+                      },
+                    }}
                   >
-                    {subjects.map((subject) => (
-                      <MenuItem key={subject} value={subject}>
-                        {subject}
+                    {loadingSubjects ? (
+                      <MenuItem disabled>
+                        <CircularProgress size={24} />
                       </MenuItem>
-                    ))}
+                    ) : subjectsError ? (
+                      <MenuItem disabled>{subjectsError}</MenuItem>
+                    ) : (
+                      subjects.map((subject) => (
+                        <MenuItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </MenuItem>
+                      ))
+                    )}
                   </TextField>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -184,12 +292,29 @@ const LandingPage = () => {
                     label="Select Chapter"
                     value={chapter}
                     onChange={(e) => setChapter(e.target.value)}
+                    SelectProps={{
+                      MenuProps: {
+                        PaperProps: {
+                          style: {
+                            maxHeight: 224, // 5 items * 48px item height + 8px padding
+                          },
+                        },
+                      },
+                    }}
                   >
-                    {chapters.map((chapter) => (
-                      <MenuItem key={chapter} value={chapter}>
-                        {chapter}
+                    {loadingChapters ? (
+                      <MenuItem disabled>
+                        <CircularProgress size={24} />
                       </MenuItem>
-                    ))}
+                    ) : chaptersError ? (
+                      <MenuItem disabled>{chaptersError}</MenuItem>
+                    ) : (
+                      chapters.map((chapter) => (
+                        <MenuItem key={chapter.id} value={chapter.id}>
+                          {chapter.name}
+                        </MenuItem>
+                      ))
+                    )}
                   </TextField>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -223,14 +348,14 @@ const LandingPage = () => {
                   <TextField
                     fullWidth
                     label="Test Number"
-                    type="text"
+                    type="number"
                     value={testNumber}
                     onChange={(e) => setTestNumber(e.target.value)}
                   />
                 </Grid>
               </Grid>
               <Box sx={{ mt: 2 }}>
-                <Button variant="contained" type="submit">
+                <Button type="submit" variant="contained" fullWidth>
                   Submit
                 </Button>
               </Box>
@@ -238,6 +363,15 @@ const LandingPage = () => {
           </Stack>
         </Container>
       </Box>
+      <Snackbar
+        open={successSnackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSuccessSnackbarOpen(false)}
+      >
+        <Alert onClose={() => setSuccessSnackbarOpen(false)} severity="success">
+          Test data added successfully
+        </Alert>
+      </Snackbar>
     </>
   );
 };
