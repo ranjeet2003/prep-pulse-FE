@@ -36,7 +36,7 @@ const Page = () => {
     }),
     onSubmit: async (values, helpers) => {
       try {
-        const response = await axios.post("http://localhost:3030/api/users/register", {
+        const response = await axios.post("https://prep-pulse.onrender.com/api/users/register", {
           name: values.name,
           email: values.email,
           mobile: values.mobile,

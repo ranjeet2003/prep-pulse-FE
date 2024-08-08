@@ -1,5 +1,5 @@
 export const fetchSubjects = async (userId, token) => {
-  const response = await fetch("http://localhost:3030/api/subjects/getAllSubjects", {
+  const response = await fetch("https://prep-pulse.onrender.com/api/subjects/getAllSubjects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -17,7 +17,7 @@ export const fetchSubjects = async (userId, token) => {
 };
 
 export const fetchChapters = async (subjectId, token) => {
-  const response = await fetch("http://localhost:3030/api/chapters/getAllChapters", {
+  const response = await fetch("https://prep-pulse.onrender.com/api/chapters/getAllChapters", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -35,7 +35,7 @@ export const fetchChapters = async (subjectId, token) => {
 };
 
 export const addSubject = async (subjectName, token) => {
-  const response = await fetch("http://localhost:3030/api/subjects/subjects", {
+  const response = await fetch("https://prep-pulse.onrender.com/api/subjects/subjects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -53,7 +53,7 @@ export const addSubject = async (subjectName, token) => {
 };
 
 export const addTest = async (testData, token) => {
-  const response = await fetch("http://localhost:3030/api/tests/addTests", {
+  const response = await fetch("https://prep-pulse.onrender.com/api/tests/addTests", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -70,14 +70,17 @@ export const addTest = async (testData, token) => {
   }
 };
 export const getTotalTestCountByUser = async (userId, token) => {
-  const response = await fetch("http://localhost:3030/api/tests/getTotalTestsByUserData", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ userId }),
-  });
+  const response = await fetch(
+    "https://prep-pulse.onrender.com/api/tests/getTotalTestsByUserData",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId }),
+    }
+  );
 
   if (response.ok) {
     const data = await response.json();
@@ -88,7 +91,7 @@ export const getTotalTestCountByUser = async (userId, token) => {
 };
 
 export const addChapter = async (chapterName, subjectId, token) => {
-  const response = await fetch("http://localhost:3030/api/chapters/addChapters", {
+  const response = await fetch("https://prep-pulse.onrender.com/api/chapters/addChapters", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
