@@ -43,7 +43,7 @@ export const CustomersTable = (props) => {
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox">
-                  <Checkbox
+                  {/* <Checkbox
                     checked={selectedAll}
                     indeterminate={selectedSome}
                     onChange={(event) => {
@@ -53,7 +53,7 @@ export const CustomersTable = (props) => {
                         onDeselectAll?.();
                       }
                     }}
-                  />
+                  /> */}
                 </TableCell>
                 <TableCell>
                   Name

@@ -90,6 +90,27 @@ export const getTotalTestCountByUser = async (userId, token) => {
   }
 };
 
+export const getTestsDataByChapterId = async (chapter, token) => {
+  const response = await fetch(
+    "https://prep-pulse.onrender.com/api/tests/getTestsDataByChapterId",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ chapter }),
+    }
+  );
+
+  if (response.ok) {
+    const data = await response.json();
+    return data;
+  } else {
+    throw new Error("Failed to get total test count.");
+  }
+};
+
 export const addChapter = async (chapterName, subjectId, token) => {
   const response = await fetch("https://prep-pulse.onrender.com/api/chapters/addChapters", {
     method: "POST",

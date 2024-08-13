@@ -18,6 +18,8 @@ import AddIcon from "@mui/icons-material/Add";
 import Cookies from "js-cookie";
 import { fetchSubjects, fetchChapters, addSubject, addTest, addChapter } from "src/utils/api";
 import { useRouter } from "next/router";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 const LandingPage = () => {
   const [subjects, setSubjects] = useState([]);
@@ -26,66 +28,70 @@ const LandingPage = () => {
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [subjectsError, setSubjectsError] = useState("");
   const [chaptersError, setChaptersError] = useState("");
-  const [subject, setSubject] = useState("");
-  const [chapter, setChapter] = useState("");
-  const [totalQuestions, setTotalQuestions] = useState("");
-  const [attemptedQuestions, setAttemptedQuestions] = useState("");
-  const [correctedQuestions, setCorrectedQuestions] = useState("");
-  const [testNumber, setTestNumber] = useState("");
-
   const [openSubjectForm, setOpenSubjectForm] = useState(false);
   const [newSubject, setNewSubject] = useState("");
   const [openChapterForm, setOpenChapterForm] = useState(false);
   const [newChapter, setNewChapter] = useState("");
   const [newlyAddedSubjectId, setNewlyAddedSubjectId] = useState("");
+  const [selectedSubjectName, setSelectedSubjectName] = useState("");
+  const [selectedChapterName, setSelectedChapterName] = useState("");
   const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
 
   const router = useRouter();
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const formik = useFormik({
+    initialValues: {
+      subject: "",
+      chapter: "",
+      totalQuestions: "",
+      attemptedQuestions: "",
+      correctedQuestions: "",
+      testNumber: "",
+    },
+    validationSchema: Yup.object({
+      totalQuestions: Yup.number()
+        .required("Total Questions is required")
+        .min(0, "Total Questions cannot be negative"),
+      attemptedQuestions: Yup.number()
+        .required("Attempted Questions is required")
+        .min(0, "Attempted Questions cannot be negative")
+        .max(Yup.ref("totalQuestions"), "Attempted Questions cannot exceed Total Questions"),
+      correctedQuestions: Yup.number()
+        .required("Corrected Questions is required")
+        .min(0, "Corrected Questions cannot be negative")
+        .max(Yup.ref("attemptedQuestions"), "Corrected Questions cannot exceed Attempted Questions"),
+      testNumber: Yup.number()
+        .required("Test Number is required")
+        .min(1, "Test Number must be at least 1"),
+    }),
+    onSubmit: async (values) => {
+      const { subject, chapter, totalQuestions, attemptedQuestions, correctedQuestions, testNumber } = values;
 
-    const total = parseInt(totalQuestions, 10) || 0;
-    const attempted = parseInt(attemptedQuestions, 10) || 0;
-    const corrected = parseInt(correctedQuestions, 10) || 0;
+      const testData = {
+        chapterId: chapter,
+        test_number: parseInt(testNumber, 10),
+        total_questions: parseInt(totalQuestions, 10),
+        attempted_questions: parseInt(attemptedQuestions, 10),
+        corrected_questions: parseInt(correctedQuestions, 10),
+        userId: Cookies.get("userId"),
+        subjectName: selectedSubjectName, // Add subject name
+        chapterName: selectedChapterName, // Add chapter name
+      };
 
-    const attemptedPercentage = total > 0 ? ((attempted / total) * 100).toFixed(2) : 0;
-    const correctedPercentage = total > 0 ? ((corrected / total) * 100).toFixed(2) : 0;
+      try {
+        const token = Cookies.get("token");
+        await addTest(testData, token);
 
-    console.log({
-      subject,
-      chapter,
-      totalQuestions,
-      attemptedQuestions,
-      correctedQuestions,
-      testNumber,
-      attemptedPercentage: `${attemptedPercentage}%`,
-      correctedPercentage: `${correctedPercentage}%`,
-    });
-
-    // Prepare the data to be sent to the API
-    const testData = {
-      chapterId: chapter,
-      test_number: parseInt(testNumber, 10),
-      total_questions: total,
-      attempted_questions: attempted,
-      corrected_questions: corrected,
-      userId: Cookies.get("userId"),
-    };
-
-    try {
-      const token = Cookies.get("token");
-      await addTest(testData, token);
-
-      // Show success message and redirect after 3 seconds
-      setSuccessSnackbarOpen(true);
-      setTimeout(() => {
-        router.push("/");
-      }, 3000); // Redirect after 3 seconds
-    } catch (error) {
-      console.error(error.message);
-    }
-  };
+        // Show success message and redirect after 3 seconds
+        setSuccessSnackbarOpen(true);
+        setTimeout(() => {
+          router.push("/");
+        }, 3000); // Redirect after 3 seconds
+      } catch (error) {
+        console.error(error.message);
+      }
+    },
+  });
 
   const handleAddSubject = async () => {
     const token = Cookies.get("token");
@@ -108,7 +114,7 @@ const LandingPage = () => {
     try {
       const chapterData = {
         name: newChapter,
-        subjectId: newlyAddedSubjectId || subject,
+        subjectId: newlyAddedSubjectId || formik.values.subject,
       };
       const data = await addChapter(chapterData.name, chapterData.subjectId, token);
       console.log("New Chapter added:", data);
@@ -157,8 +163,21 @@ const LandingPage = () => {
 
   const handleSubjectChange = (event) => {
     const selectedSubjectId = event.target.value;
-    setSubject(selectedSubjectId);
+    formik.setFieldValue("subject", selectedSubjectId);
     fetchChaptersList(selectedSubjectId);
+
+    // Find and set the subject name
+    const subject = subjects.find(subject => subject.id === selectedSubjectId);
+    setSelectedSubjectName(subject ? subject.name : "");
+  };
+
+  const handleChapterChange = (event) => {
+    const selectedChapterId = event.target.value;
+    formik.setFieldValue("chapter", selectedChapterId);
+
+    // Find and set the chapter name
+    const chapter = chapters.find(chapter => chapter.id === selectedChapterId);
+    setSelectedChapterName(chapter ? chapter.name : "");
   };
 
   useEffect(() => {
@@ -245,21 +264,25 @@ const LandingPage = () => {
                       sx={{ mb: 1 }}
                     />
                     <Button type="submit" variant="contained">
+
                       Submit
                     </Button>
                   </Box>
                 )}
               </Box>
             </Box>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={formik.handleSubmit}>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     select
                     label="Select Subject"
-                    value={subject}
+                    name="subject"
+                    value={formik.values.subject}
                     onChange={handleSubjectChange}
+                    error={formik.touched.subject && Boolean(formik.errors.subject)}
+                    helperText={formik.touched.subject && formik.errors.subject}
                     SelectProps={{
                       MenuProps: {
                         PaperProps: {
@@ -290,8 +313,11 @@ const LandingPage = () => {
                     fullWidth
                     select
                     label="Select Chapter"
-                    value={chapter}
-                    onChange={(e) => setChapter(e.target.value)}
+                    name="chapter"
+                    value={formik.values.chapter}
+                    onChange={handleChapterChange} // Update to handle chapter change
+                    error={formik.touched.chapter && Boolean(formik.errors.chapter)}
+                    helperText={formik.touched.chapter && formik.errors.chapter}
                     SelectProps={{
                       MenuProps: {
                         PaperProps: {
@@ -322,8 +348,11 @@ const LandingPage = () => {
                     fullWidth
                     label="Total No. of Questions"
                     type="number"
-                    value={totalQuestions}
-                    onChange={(e) => setTotalQuestions(e.target.value)}
+                    name="totalQuestions"
+                    value={formik.values.totalQuestions}
+                    onChange={formik.handleChange}
+                    error={formik.touched.totalQuestions && Boolean(formik.errors.totalQuestions)}
+                    helperText={formik.touched.totalQuestions && formik.errors.totalQuestions}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -331,8 +360,11 @@ const LandingPage = () => {
                     fullWidth
                     label="Total Attempted Questions"
                     type="number"
-                    value={attemptedQuestions}
-                    onChange={(e) => setAttemptedQuestions(e.target.value)}
+                    name="attemptedQuestions"
+                    value={formik.values.attemptedQuestions}
+                    onChange={formik.handleChange}
+                    error={formik.touched.attemptedQuestions && Boolean(formik.errors.attemptedQuestions)}
+                    helperText={formik.touched.attemptedQuestions && formik.errors.attemptedQuestions}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -340,8 +372,11 @@ const LandingPage = () => {
                     fullWidth
                     label="Total Corrected Questions"
                     type="number"
-                    value={correctedQuestions}
-                    onChange={(e) => setCorrectedQuestions(e.target.value)}
+                    name="correctedQuestions"
+                    value={formik.values.correctedQuestions}
+                    onChange={formik.handleChange}
+                    error={formik.touched.correctedQuestions && Boolean(formik.errors.correctedQuestions)}
+                    helperText={formik.touched.correctedQuestions && formik.errors.correctedQuestions}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -349,8 +384,11 @@ const LandingPage = () => {
                     fullWidth
                     label="Test Number"
                     type="number"
-                    value={testNumber}
-                    onChange={(e) => setTestNumber(e.target.value)}
+                    name="testNumber"
+                    value={formik.values.testNumber}
+                    onChange={formik.handleChange}
+                    error={formik.touched.testNumber && Boolean(formik.errors.testNumber)}
+                    helperText={formik.touched.testNumber && formik.errors.testNumber}
                   />
                 </Grid>
               </Grid>
@@ -367,6 +405,7 @@ const LandingPage = () => {
         open={successSnackbarOpen}
         autoHideDuration={3000}
         onClose={() => setSuccessSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }} // Position at top-right corner
       >
         <Alert onClose={() => setSuccessSnackbarOpen(false)} severity="success">
           Test data added successfully

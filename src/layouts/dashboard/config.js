@@ -1,12 +1,13 @@
 import ChartBarIcon from "@heroicons/react/24/solid/ChartBarIcon";
-import CogIcon from "@heroicons/react/24/solid/CogIcon";
-import LockClosedIcon from "@heroicons/react/24/solid/LockClosedIcon";
-import ShoppingBagIcon from "@heroicons/react/24/solid/ShoppingBagIcon";
+// import CogIcon from "@heroicons/react/24/solid/CogIcon";
+// import LockClosedIcon from "@heroicons/react/24/solid/LockClosedIcon";
+// import ShoppingBagIcon from "@heroicons/react/24/solid/ShoppingBagIcon";
 import UserIcon from "@heroicons/react/24/solid/UserIcon";
-import UserPlusIcon from "@heroicons/react/24/solid/UserPlusIcon";
-import UsersIcon from "@heroicons/react/24/solid/UsersIcon";
+// import UserPlusIcon from "@heroicons/react/24/solid/UserPlusIcon";
+// import UsersIcon from "@heroicons/react/24/solid/UsersIcon";
 import PlusIcon from "@heroicons/react/24/solid/PlusCircleIcon";
-import XCircleIcon from "@heroicons/react/24/solid/XCircleIcon";
+import EyeIcon from "@heroicons/react/24/solid/EyeIcon";
+// import XCircleIcon from "@heroicons/react/24/solid/XCircleIcon";
 import { SvgIcon } from "@mui/material";
 
 export const items = [
@@ -34,6 +35,15 @@ export const items = [
     icon: (
       <SvgIcon fontSize="small">
         <PlusIcon />
+      </SvgIcon>
+    ),
+  },
+  {
+    title: "View Subject Wise Score",
+    path: "/viewSubjectWiseScore",
+    icon: (
+      <SvgIcon fontSize="small">
+        <EyeIcon />
       </SvgIcon>
     ),
   },
